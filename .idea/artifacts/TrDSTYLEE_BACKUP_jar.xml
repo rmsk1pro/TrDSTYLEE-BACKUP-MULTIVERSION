@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="TrDSTYLEE-BACKUP:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/TrDSTYLEE_BACKUP_jar</output-path>
+    <root id="archive" name="TrDSTYLEE-BACKUP.jar">
+      <element id="module-output" name="TrDSTYLEE-BACKUP" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/jcraft/jsch/0.1.55/jsch-0.1.55.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

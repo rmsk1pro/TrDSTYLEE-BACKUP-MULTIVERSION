@@ -1,0 +1,16 @@
+name: BackupSFTP
+main: br.trcraft.backup.Main
+version: 1.0
+api-version: 1.13
+author: TrDSTYLEE
+
+commands:
+  backup:
+    description: Gerencia backups do servidor
+    usage: /backup [create|reload|cancel]
+    permission: backup.staff
+
+permissions:
+  backup.staff:
+    description: Permite executar comandos de backup
+    default: op
