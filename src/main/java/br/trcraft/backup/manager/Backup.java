@@ -22,23 +22,25 @@ public class Backup {
         this.plugin = plugin;
     }
 
+    /**
+     * Cria backup completo do servidor, exceto pastas isentas
+     * @return Arquivo de backup criado ou null se falhar
+     */
     public File createBackup() {
         FileConfiguration config = plugin.getConfig();
-
-        String backupFolderName = config.getString("saveFolder", "##BACKUP");
+        String backupFolderName = config.getString("saveFolder", "BACKUP");
         File backupDir = backupFolderName.startsWith(File.separator)
                 ? new File(backupFolderName)
                 : new File(plugin.getServer().getWorldContainer(), backupFolderName);
 
         if (!backupDir.exists() && !backupDir.mkdirs()) {
-            plugin.getLogger().severe("[EasyBackupSFTP] Não foi possível criar a pasta de backup: " + backupDir.getAbsolutePath());
+            plugin.getLogger().severe("[Backup] Não foi possível criar a pasta de backup: " + backupDir.getAbsolutePath());
             return null;
         }
 
         String date = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
         String backupName = config.getString("name", "backup_%time%").replace("%time%", date);
         String extension = config.getString("extension", "zip");
-
         File backupFile = new File(backupDir, backupName + "." + extension);
 
         List<String> exemptFolders = config.getStringList("exemptFolders");
@@ -49,18 +51,17 @@ public class Backup {
 
             Files.walk(serverRoot)
                     .filter(path -> !Files.isDirectory(path))
-                    .filter(path -> !path.startsWith(backupDir.toPath())) // Ignora backups antigos
+                    .filter(path -> !path.startsWith(backupDir.toPath()))
                     .filter(path -> !isInExemptFolders(path, serverRoot, exemptFolders))
                     .forEach(path -> {
                         Path relativePath = serverRoot.relativize(path);
                         String zipEntryName = relativePath.toString().replace("\\", "/");
                         try {
-                            // Verifica se o arquivo pode ser aberto e lido
                             try (FileInputStream testStream = new FileInputStream(path.toFile())) {
-                                testStream.read(); // lê 1 byte para validar
+                                testStream.read(); // verifica se arquivo pode ser lido
                             } catch (IOException e) {
-                                plugin.getLogger().info("[EasyBackupSFTP] Ignorando arquivo bloqueado ou em uso: " + path.toString());
-                                return; // ignora este arquivo
+                                plugin.getLogger().info("[Backup] Ignorando arquivo bloqueado ou em uso: " + path);
+                                return;
                             }
 
                             zos.putNextEntry(new ZipEntry(zipEntryName));
@@ -68,20 +69,20 @@ public class Backup {
                             zos.closeEntry();
 
                             if (config.getBoolean("slowdownWhenServerLags", true)) {
-                                try {
-                                    Thread.sleep(config.getInt("backupDelayBetweenFiles", 100));
-                                } catch (InterruptedException ignored) {}
+                                try { Thread.sleep(config.getInt("backupDelayBetweenFiles", 100)); }
+                                catch (InterruptedException ignored) {}
                             }
                         } catch (IOException e) {
-                            plugin.getLogger().severe("[EasyBackupSFTP] Erro ao adicionar arquivo ao backup: " + path);
+                            plugin.getLogger().severe("[Backup] Erro ao adicionar arquivo ao backup: " + path);
                             e.printStackTrace();
                         }
                     });
 
-            plugin.getLogger().info("[EasyBackupSFTP] Backup criado com sucesso: " + backupFile.getAbsolutePath());
+            plugin.getLogger().info("[Backup] Backup criado com sucesso: " + backupFile.getAbsolutePath());
             return backupFile;
+
         } catch (IOException e) {
-            plugin.getLogger().severe("[EasyBackupSFTP] Erro ao criar backup: " + e.getMessage());
+            plugin.getLogger().severe("[Backup] Erro ao criar backup: " + e.getMessage());
             e.printStackTrace();
             return null;
         }
@@ -91,10 +92,18 @@ public class Backup {
         if (exemptFolders == null) return false;
         for (String exempt : exemptFolders) {
             Path exemptPath = basePath.resolve(exempt).normalize();
-            if (path.startsWith(exemptPath)) {
-                return true;
-            }
+            if (path.startsWith(exemptPath)) return true;
         }
         return false;
+    }
+
+    /**
+     * Retorna a pasta onde os backups são salvos
+     */
+    public File getBackupFolder() {
+        String backupFolderName = plugin.getConfig().getString("saveFolder", "BACKUP");
+        return backupFolderName.startsWith(File.separator)
+                ? new File(backupFolderName)
+                : new File(plugin.getServer().getWorldContainer(), backupFolderName);
     }
 }
