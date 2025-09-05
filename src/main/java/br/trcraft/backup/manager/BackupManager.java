@@ -6,9 +6,12 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.*;
+import java.io.File;
+import java.util.Arrays;
+import java.util.Comparator;
 
 public class BackupManager {
+
     private final JavaPlugin plugin;
     private final Backup fileBackup;
     private MySQLBackupMethod mySQLBackupMethod;
@@ -24,6 +27,9 @@ public class BackupManager {
         setupSFTP();
     }
 
+    /**
+     * Recarrega as configurações do plugin
+     */
     public void reloadConfigs() {
         plugin.reloadConfig();
         setupSFTP();
@@ -31,6 +37,9 @@ public class BackupManager {
         plugin.getLogger().info("Configurações recarregadas com sucesso.");
     }
 
+    /**
+     * Verifica se um backup está em andamento
+     */
     public synchronized boolean isBackupRunning() {
         return backupRunning;
     }
@@ -39,6 +48,9 @@ public class BackupManager {
         this.backupRunning = running;
     }
 
+    /**
+     * Cancela o backup em andamento, se houver
+     */
     public synchronized void cancelBackup(CommandSender sender) {
         if (!backupRunning) {
             sendMessage(sender, "§cNão há backup em andamento para cancelar.");
@@ -49,6 +61,9 @@ public class BackupManager {
         }
     }
 
+    /**
+     * Inicia o backup de forma assíncrona
+     */
     public void startBackupAsync() {
         startBackupAsync(null);
     }
@@ -58,7 +73,7 @@ public class BackupManager {
 
         synchronized (this) {
             if (backupRunning) {
-                sendMessage(sender, "§cJá existe um backup em andamento, aguarde ele terminar.");
+                sendMessage(sender, "§cJá existe um backup em andamento. Aguarde ele terminar.");
                 return;
             }
             setBackupRunning(true);
@@ -71,6 +86,7 @@ public class BackupManager {
 
                 if (checkCancel(sender, "Backup cancelado antes de iniciar.")) return;
 
+                // Backup de arquivos
                 plugin.getLogger().info("📁 Iniciando backup de arquivos...");
                 File backupFile = fileBackup.createBackup();
 
@@ -79,6 +95,9 @@ public class BackupManager {
                 if (backupFile != null && backupFile.exists()) {
                     plugin.getLogger().info("✅ Backup de arquivos criado em: " + backupFile.getAbsolutePath());
                     uploadFileIfConfigured(backupFile, sender, "arquivos");
+
+                    // Limpeza de backups antigos (.zip)
+                    cleanOldBackups();
                 } else {
                     plugin.getLogger().warning("❌ Falha ao criar backup de arquivos.");
                     sendMessage(sender, "§cFalha ao criar backup de arquivos.");
@@ -86,10 +105,10 @@ public class BackupManager {
 
                 if (checkCancel(sender, "Backup cancelado antes do backup MySQL.")) return;
 
+                // Backup MySQL
                 if (mySQLBackupMethod != null) {
                     plugin.getLogger().info("💾 Iniciando backup MySQL...");
                     File mysqlBackupFile = null;
-
                     try {
                         mysqlBackupFile = mySQLBackupMethod.createBackup();
                     } catch (Exception e) {
@@ -108,7 +127,7 @@ public class BackupManager {
                         sendMessage(sender, "§cFalha ao criar backup MySQL.");
                     }
                 } else {
-                    plugin.getLogger().info("ℹ️ Backup MySQL está desativado nas configurações.");
+                    plugin.getLogger().info("ℹ️ Backup MySQL desativado nas configurações.");
                 }
 
                 if (checkCancel(sender, "Backup cancelado no final do processo.")) return;
@@ -122,6 +141,9 @@ public class BackupManager {
         });
     }
 
+    /**
+     * Notifica o início do backup
+     */
     private void notifyStart(CommandSender sender, boolean fromConsole) {
         if (fromConsole) {
             plugin.getLogger().info("§c§l BACKUP §e» §aBACKUP INICIANDO...");
@@ -135,6 +157,9 @@ public class BackupManager {
         }
     }
 
+    /**
+     * Notifica o fim do backup
+     */
     private void notifyFinish(CommandSender sender, boolean fromConsole) {
         if (fromConsole) {
             plugin.getLogger().info("§c§l BACKUP §e» §aBackup finalizado.");
@@ -148,6 +173,9 @@ public class BackupManager {
         }
     }
 
+    /**
+     * Checa se houve solicitação de cancelamento
+     */
     private boolean checkCancel(CommandSender sender, String reason) {
         if (cancelRequested) {
             plugin.getLogger().info(reason);
@@ -157,10 +185,13 @@ public class BackupManager {
         return false;
     }
 
+    /**
+     * Upload de backup via SFTP, se configurado
+     */
     private void uploadFileIfConfigured(File file, CommandSender sender, String label) {
         if (sftp != null) {
             try {
-                sftp.uploadFile(file, sender); // Síncrono: aguarda upload terminar
+                sftp.uploadFile(file, sender);
                 plugin.getLogger().info("📤 Backup " + label + " enviado via SFTP.");
             } catch (Exception e) {
                 plugin.getLogger().severe("Erro ao enviar backup " + label + " via SFTP: " + e.getMessage());
@@ -176,10 +207,13 @@ public class BackupManager {
         }
     }
 
+    /**
+     * Inicializa o método de backup MySQL
+     */
     private void initMySQLBackupMethod() {
         FileConfiguration config = plugin.getConfig();
         if (!config.getBoolean("mysql.enable", false)) {
-            plugin.getLogger().info("Backup MySQL desabilitado.");
+            plugin.getLogger().info("Backup MySQL desativado.");
             mySQLBackupMethod = null;
             return;
         }
@@ -198,6 +232,9 @@ public class BackupManager {
         }
     }
 
+    /**
+     * Inicializa o SFTP, se configurado
+     */
     private void setupSFTP() {
         FileConfiguration config = plugin.getConfig();
         if (config.getBoolean("ftp.enable", false)) {
@@ -214,15 +251,32 @@ public class BackupManager {
         }
     }
 
-    public Backup getFileBackup() {
-        return fileBackup;
+    /**
+     * Limpa backups antigos (.zip) mantendo apenas o limite configurado
+     */
+    public void cleanOldBackups() {
+        int maxBackups = plugin.getConfig().getInt("maxBackupsBeforeErase", 20);
+        File backupFolder = fileBackup.getBackupFolder();
+        if (backupFolder == null || !backupFolder.exists() || !backupFolder.isDirectory()) return;
+
+        File[] backups = backupFolder.listFiles((dir, name) -> name.endsWith(".zip"));
+        if (backups == null || backups.length <= maxBackups) return;
+
+        // Ordena do mais antigo para o mais novo
+        Arrays.sort(backups, Comparator.comparingLong(File::lastModified));
+
+        int filesToDelete = backups.length - maxBackups;
+        for (int i = 0; i < filesToDelete; i++) {
+            if (backups[i].delete()) {
+                plugin.getLogger().info("🗑 Backup antigo apagado: " + backups[i].getName());
+            } else {
+                plugin.getLogger().warning("⚠️ Falha ao apagar backup antigo: " + backups[i].getName());
+            }
+        }
     }
 
-    public MySQLBackupMethod getMySQLBackupMethod() {
-        return mySQLBackupMethod;
-    }
+    public Backup getFileBackup() { return fileBackup; }
+    public MySQLBackupMethod getMySQLBackupMethod() { return mySQLBackupMethod; }
+    public SFTPManager getSftp() { return sftp; }
 
-    public SFTPManager getSftp() {
-        return sftp;
-    }
 }
