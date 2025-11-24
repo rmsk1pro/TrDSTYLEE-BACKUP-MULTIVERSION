@@ -79,6 +79,37 @@ ftp:
   maxBackupsBeforeErase: 20
   timeout: 10000 # Tempo limite de conexão SFTP em milissegundos (ex: 10000 = 10s)
 
+# Configurações do Dropbox
+#  CONFIGURAÇÃO DO DROPBOX
+#
+#  TUTORIAL PARA CONFIGURAR DROPBOX:
+#
+#  PASSO 1: OBTER TOKEN DE ACESSO
+# 1. Acesse: https://www.dropbox.com/developers/apps
+# 2. Clique em "Create app"
+# 3. Configure:
+#    - API: Scoped access
+#    - Access: Full Dropbox
+#    - Name: minecraft-backup
+# 4. Em "Permissions" marque:
+#     files.content.write
+#     files.content.read
+# 5. Em "Settings" gere o token em "OAuth 2"
+# 6. Cole o token (começa com sl.) abaixo
+#
+#  IMPORTANTE: Mantenha o token em segredo!
+#
+dropbox:
+  #  ATIVE/DESATIVE O DROPBOX
+  enable: false
+
+  #  TOKEN DE ACESSO (COLE AQUI O TOKEN GERADO)
+  accessToken: "cole_seu_token_aqui"
+
+  #  PASTA NO DROPBOX (NÃO MEXER)
+  remoteFolder: "/minecraft_backups"
+
+
 # ==============================
 # CONFIGURAÇÕES MySQL
 # ==============================
@@ -86,7 +117,7 @@ ftp:
 # Configuração para backup do banco de dados MySQL:
 mysql:
   enable: false
-  method: "mysqldump" # opções: "mysqldump" ou "jdbc"
+  method: "jdbc" # opções: "mysqldump" ou "jdbc"
   isLinux: true
   mysqldumpLinuxPath: "/usr/bin/mysqldump"
   mysqldumpWindowsPath: "C:\\xampp\\mysql\\bin\\mysqldump.exe"
