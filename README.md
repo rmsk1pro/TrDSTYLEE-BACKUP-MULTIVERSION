@@ -49,6 +49,25 @@ Com o **Backup Confiável**, você tem segurança total com praticidade absoluta
 
 ---
 
+## 🛡️ PERMISSÕES DO PLUGIN
+
+| Permissão | Descrição | Padrão |
+|-----------|-----------|---------|
+| `backup.staff` | Acesso a todos os comandos de backup | op |
+
+---
+
+## 📋 COMANDOS DISPONÍVEIS
+
+| Comando | Descrição | Permissão |
+|---------|-----------|-----------|
+| `/backup` | Mostra ajuda dos comandos | `backup.staff` |
+| `/backup create` | Inicia backup manual completo | `backup.staff` |
+| `/backup reload` | Recarrega as configurações | `backup.staff` |
+| `/backup cancel` | Cancela backup em andamento | `backup.staff` |
+
+---
+
 ## 🆕 RECURSOS EXCLUSIVOS DO DROPBOX
 
 - ☁️ **Upload Automático** - Backups vão direto para a nuvem
