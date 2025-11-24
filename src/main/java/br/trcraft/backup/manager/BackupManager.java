@@ -2,8 +2,8 @@ package br.trcraft.backup.manager;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -16,6 +16,7 @@ public class BackupManager {
     private final Backup fileBackup;
     private MySQLBackupMethod mySQLBackupMethod;
     private SFTPManager sftp;
+    private DropboxManager dropbox; // Nova instância do DropboxManager
 
     private volatile boolean backupRunning = false;
     private volatile boolean cancelRequested = false;
@@ -25,6 +26,7 @@ public class BackupManager {
         this.fileBackup = new Backup(plugin);
         initMySQLBackupMethod();
         setupSFTP();
+        setupDropbox(); // Inicializa Dropbox
     }
 
     /**
@@ -33,6 +35,7 @@ public class BackupManager {
     public void reloadConfigs() {
         plugin.reloadConfig();
         setupSFTP();
+        setupDropbox(); // Recarrega configuração do Dropbox
         initMySQLBackupMethod();
         plugin.getLogger().info("Configurações recarregadas com sucesso.");
     }
@@ -94,7 +97,9 @@ public class BackupManager {
 
                 if (backupFile != null && backupFile.exists()) {
                     plugin.getLogger().info("✅ Backup de arquivos criado em: " + backupFile.getAbsolutePath());
-                    uploadFileIfConfigured(backupFile, sender, "arquivos");
+
+                    // Upload para serviços configurados
+                    uploadFileToServices(backupFile, sender, "arquivos");
 
                     // Limpeza de backups antigos (.zip)
                     cleanOldBackups();
@@ -121,7 +126,7 @@ public class BackupManager {
 
                     if (mysqlBackupFile != null && mysqlBackupFile.exists()) {
                         plugin.getLogger().info("✅ Backup MySQL criado em: " + mysqlBackupFile.getAbsolutePath());
-                        uploadFileIfConfigured(mysqlBackupFile, sender, "MySQL");
+                        uploadFileToServices(mysqlBackupFile, sender, "MySQL");
                     } else {
                         plugin.getLogger().warning("❌ Falha ao criar backup MySQL.");
                         sendMessage(sender, "§cFalha ao criar backup MySQL.");
@@ -139,6 +144,35 @@ public class BackupManager {
                 cancelRequested = false;
             }
         });
+    }
+
+    /**
+     * Upload de backup para todos os serviços configurados
+     */
+    private void uploadFileToServices(File file, CommandSender sender, String label) {
+        // Upload SFTP
+        if (sftp != null) {
+            try {
+                sftp.uploadFile(file, sender);
+                plugin.getLogger().info("📤 Backup " + label + " enviado via SFTP.");
+            } catch (Exception e) {
+                plugin.getLogger().severe("Erro ao enviar backup " + label + " via SFTP: " + e.getMessage());
+                e.printStackTrace();
+                sendMessage(sender, "§cErro ao enviar backup " + label + " via SFTP: " + e.getMessage());
+            }
+        }
+
+        // Upload Dropbox
+        if (dropbox != null && dropbox.isEnabled()) {
+            try {
+                dropbox.uploadFile(file, sender);
+                plugin.getLogger().info("☁️ Backup " + label + " enviado para Dropbox.");
+            } catch (Exception e) {
+                plugin.getLogger().severe("Erro ao enviar backup " + label + " para Dropbox: " + e.getMessage());
+                e.printStackTrace();
+                sendMessage(sender, "§cErro ao enviar backup " + label + " para Dropbox: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -183,22 +217,6 @@ public class BackupManager {
             return true;
         }
         return false;
-    }
-
-    /**
-     * Upload de backup via SFTP, se configurado
-     */
-    private void uploadFileIfConfigured(File file, CommandSender sender, String label) {
-        if (sftp != null) {
-            try {
-                sftp.uploadFile(file, sender);
-                plugin.getLogger().info("📤 Backup " + label + " enviado via SFTP.");
-            } catch (Exception e) {
-                plugin.getLogger().severe("Erro ao enviar backup " + label + " via SFTP: " + e.getMessage());
-                e.printStackTrace();
-                sendMessage(sender, "§cErro ao enviar backup " + label + " via SFTP: " + e.getMessage());
-            }
-        }
     }
 
     private void sendMessage(CommandSender sender, String message) {
@@ -252,6 +270,25 @@ public class BackupManager {
     }
 
     /**
+     * Inicializa o Dropbox, se configurado
+     */
+    private void setupDropbox() {
+        FileConfiguration config = plugin.getConfig();
+        if (config.getBoolean("dropbox.enable", false)) {
+            dropbox = new DropboxManager(plugin);
+            if (dropbox.isEnabled()) {
+                plugin.getLogger().info("☁️ Dropbox ativado e configurado.");
+            } else {
+                plugin.getLogger().warning("⚠️ Dropbox configurado mas não inicializado corretamente.");
+                dropbox = null;
+            }
+        } else {
+            dropbox = null;
+            plugin.getLogger().info("☁️ Dropbox desativado nas configurações.");
+        }
+    }
+
+    /**
      * Limpa backups antigos (.zip) mantendo apenas o limite configurado
      */
     public void cleanOldBackups() {
@@ -278,5 +315,6 @@ public class BackupManager {
     public Backup getFileBackup() { return fileBackup; }
     public MySQLBackupMethod getMySQLBackupMethod() { return mySQLBackupMethod; }
     public SFTPManager getSftp() { return sftp; }
+    public DropboxManager getDropbox() { return dropbox; } // Novo getter
 
 }
