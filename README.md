@@ -1,3 +1,7 @@
+
+<img width="1024" height="1536" alt="BACKUP" src="https://github.com/user-attachments/assets/7fb8d247-85cd-4123-b949-3526eaed9185" />
+
+
 # 🚀 Backup Confiável - Segurança e Praticidade para seu Servidor! 🛡️
 
 *Proteja seus dados com backups automáticos e seguros!*
