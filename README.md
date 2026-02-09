@@ -1,5 +1,6 @@
 
-<img width="1024" height="1536" alt="BACKUP" src="https://github.com/user-attachments/assets/7fb8d247-85cd-4123-b949-3526eaed9185" />
+<img width="1024" height="1536" alt="BACKUP" src="https://github.com/user-attachments/assets/694007fe-ddf1-4c29-a2b8-381918fedc0b" />
+
 
 
 # 🚀 Backup Confiável - Segurança e Praticidade para seu Servidor! 🛡️
